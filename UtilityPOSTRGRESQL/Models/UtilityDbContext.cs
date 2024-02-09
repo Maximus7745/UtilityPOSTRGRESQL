@@ -21,6 +21,7 @@ namespace UtilityPostgreSQL.Models
 
             var config = builder.Build();
             connectionString = config["ConnectionString"]!;
+            Database.EnsureCreated();
         }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

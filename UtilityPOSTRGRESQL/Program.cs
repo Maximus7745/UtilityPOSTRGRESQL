@@ -109,8 +109,8 @@ static void ImportDepartments(List<string[]> rows)
                 Department? parent = null;
                 Employee? manager = null;
 
-                    List<Department> departments = db.Departments.Where(d => d.Name.Replace(" ", "").ToLower()
-                    == name.Replace(" ", "").ToLower()).ToList();
+                    List<Department> departments = db.Departments.Where(d => d.Name
+                    == name).ToList();
                     if (!string.IsNullOrWhiteSpace(parentName))
                     {
                         if (departments.Count > 0)
@@ -118,8 +118,8 @@ static void ImportDepartments(List<string[]> rows)
                             foreach (var dep in departments)
                             {
                                 var temp_parent = db.Departments.FirstOrDefault(d => d.ID == dep.ParentID);
-                                if (temp_parent != null && parentName.Replace(" ", "").ToLower() ==
-                                    temp_parent.Name.Replace(" ", "").ToLower())
+                                if (temp_parent != null && parentName ==
+                                    temp_parent.Name)
                                 {
                                     parent = temp_parent;
                                     break;
@@ -128,8 +128,8 @@ static void ImportDepartments(List<string[]> rows)
                         }
                         if (parent == null)
                         {
-                            parent = db.Departments.FirstOrDefault(d => d.Name.Replace(" ", "").ToLower()
-                            == parentName.Replace(" ", "").ToLower()); //тут тоже есть нюанс, что мы не знаем какой
+                            parent = db.Departments.FirstOrDefault(d => d.Name
+                            == parentName); //тут тоже есть нюанс, что мы не знаем какой
                                                                        //имеенно родительский департамент будет выбран, так как
                                                                        //уникальность задаётся двумя параметрами, а у нас только его имя
                         }
@@ -147,8 +147,8 @@ static void ImportDepartments(List<string[]> rows)
                     }
                     if (!string.IsNullOrWhiteSpace(fullName))
                     {
-                        manager = db.Employees.FirstOrDefault(e => e.FullName.Replace(" ", "").ToLower()
-                        == fullName.Replace(" ", "").ToLower());
+                        manager = db.Employees.FirstOrDefault(e => e.FullName
+                        == fullName);
                         if (manager == null)
                         {
                             manager = new Employee { FullName = fullName };
@@ -168,8 +168,8 @@ static void ImportDepartments(List<string[]> rows)
                         }
 
                     }
-                    Department? department = db.Departments.FirstOrDefault(d => d.Name.Replace(" ", "").ToLower()
-                    == name.Replace(" ", "").ToLower()
+                    Department? department = db.Departments.FirstOrDefault(d => d.Name
+                    == name
                     && (d.ParentID == (parent != null ? parent.ID : 0)));
 
                     if (department != null)
@@ -251,8 +251,8 @@ static void ImportEmployees(List<string[]> rows)
                 Job? job = null;
                 Department? department = null;
 
-                    Employee? employee = db.Employees.FirstOrDefault(d => d.FullName.Replace(" ", "").ToLower()
-                        == fullName.Replace(" ", "").ToLower());
+                    Employee? employee = db.Employees.FirstOrDefault(d => d.FullName
+                        == fullName);
                     if (!string.IsNullOrWhiteSpace(deparmentName))
                     {
                         if (employee != null && employee.DepartmentID != null)
@@ -266,8 +266,8 @@ static void ImportEmployees(List<string[]> rows)
                         }
                         if (department == null)
                         {
-                            department = db.Departments.FirstOrDefault(d => d.Name.Replace(" ", "").ToLower()
-                            == deparmentName.Replace(" ", "").ToLower()); //Тут есть нюанс, что мы находим первый попавшийся отдел
+                            department = db.Departments.FirstOrDefault(d => d.Name
+                            == deparmentName); //Тут есть нюанс, что мы находим первый попавшийся отдел
                         }
 
                         if (department == null)
@@ -284,8 +284,8 @@ static void ImportEmployees(List<string[]> rows)
                     }
                     if (!string.IsNullOrWhiteSpace(jobName))
                     {
-                        job = db.Jobs.FirstOrDefault(e => e.Name.Replace(" ", "").ToLower()
-                        == jobName.Replace(" ", "").ToLower());
+                        job = db.Jobs.FirstOrDefault(e => e.Name
+                        == jobName);
                         if (job == null)
                         {
                             job = new Job { Name = jobName };
@@ -339,7 +339,7 @@ static void ImportEmployees(List<string[]> rows)
                         db.Add(employee);
                         db.SaveChanges();
                     }
-
+                    
 
             }
             catch (Exception)

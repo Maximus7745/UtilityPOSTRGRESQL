@@ -415,16 +415,19 @@ static void Output()
         departments = db.Departments.ToList();
     }
     var firstNodes = departments.Where(d => d.ParentID == 0).OrderBy(p => p.Name);
+    string output = "";
     foreach (var node in firstNodes)
     {
         int level = 1;
-        WriteNode(node, departments, level);
+        output += WriteNode(node, departments, level);
     }
+    Console.WriteLine(output);
 }
 
 
-static void WriteNode(Department node, List<Department> departments, int level)
+static string WriteNode(Department node, List<Department> departments, int level)
 {
+    string output = "";
     var employees = new List<Employee>();
     Employee? manager = null;
     using (UtilityDbContext db = new UtilityDbContext())
@@ -432,18 +435,20 @@ static void WriteNode(Department node, List<Department> departments, int level)
         employees = db.Employees.Where(e => e.DepartmentID == node.ID).OrderBy(e => e.FullName).ToList();
         manager = db.Employees.FirstOrDefault(e => e.ID == node.ManagerID);
     }
-    Console.WriteLine($"{new string('=', level)} {node.Name} ID={node.ID}");
-    WriteManager(manager, level);
-    WriteEmloyees(node, employees, level);
+    output += $"{new string('=', level)} {node.Name} ID={node.ID}\n";
+    output += WriteManager(manager, level);
+    output += WriteEmloyees(node, employees, level);
     var children = departments.Where(d => d.ParentID == node.ID).OrderBy(p => p.Name);
     foreach (var child in children)
     {
         int newLevel = level + 1;
-        WriteNode(child, departments, newLevel);
+        output += WriteNode(child, departments, newLevel);
     }
+    return output;
 }
-static void WriteManager(Employee? manager, int level)
+static string WriteManager(Employee? manager, int level)
 {
+    string output = "";
     if (manager != null)
     {
         string job = "";
@@ -459,11 +464,13 @@ static void WriteManager(Employee? manager, int level)
 
             }
         }
-        Console.WriteLine($"{new string(' ', level - 1)}* {manager.FullName} ID={manager.ID} {job}");
+        output += $"{new string(' ', level - 1)}* {manager.FullName} ID={manager.ID} {job}\n";
     }
+    return output;
 }
-static void WriteEmloyees(Department node, List<Employee> employees, int level)
+static string WriteEmloyees(Department node, List<Employee> employees, int level)
 {
+    string output = "";
     foreach (var employee in employees)
     {
         if (employee.ID == node.ManagerID)
@@ -484,10 +491,11 @@ static void WriteEmloyees(Department node, List<Employee> employees, int level)
             }
         }
 
-        Console.WriteLine($"{new string(' ', level - 1)}- {employee.FullName} ID={employee.ID} {job}");
+        output += $"{new string(' ', level - 1)}- {employee.FullName} ID={employee.ID} {job}\n";
     }
+    return output;
 }
-static List<Department> WriteParents(Department node, List<Department> departments)
+static List<Department> WriteParents(Department node, List<Department> departments, ref string output)
 {
     List<Department> parents = new List<Department>();
     if (node.ParentID != 0)
@@ -501,7 +509,7 @@ static List<Department> WriteParents(Department node, List<Department> departmen
         }
         for (int i = parents.Count - 1; i > -1; i--)
         {
-            Console.WriteLine($"{new string('=', parents.Count - i)} {parents[i].Name} ID={parents[i].ID}");
+            output += $"{new string('=', parents.Count - i)} {parents[i].Name} ID={parents[i].ID}\n";
         }
 
     }
@@ -524,9 +532,10 @@ static void OutputById(int id)
         Console.WriteLine("Данный id не существует!");
         return;
     }
-    List<Department> parents = WriteParents(node, departments);
-   
-    Console.WriteLine($"{new string('=', parents.Count + 1)} {node.Name} ID={node.ID}");
+    string output = "";
+    List<Department> parents = WriteParents(node, departments, ref output);
+
+    output += $"{new string('=', parents.Count + 1)} {node.Name} ID={node.ID}\n";
 
     var employees = new List<Employee>();
     Employee? manager = null;
@@ -535,9 +544,10 @@ static void OutputById(int id)
         employees = db.Employees.Where(e => e.DepartmentID == node.ID).OrderBy(e => e.FullName).ToList();
         manager = db.Employees.FirstOrDefault(e => e.ID == node.ManagerID);
     }
-    WriteManager(manager, parents.Count + 1);
-    WriteEmloyees(node, employees, parents.Count + 1);
-   
+    output += WriteManager(manager, parents.Count + 1);
+    output += WriteEmloyees(node, employees, parents.Count + 1);
+    Console.WriteLine(output);
+
 }
 
 

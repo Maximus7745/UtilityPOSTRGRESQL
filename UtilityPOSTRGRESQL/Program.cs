@@ -93,138 +93,141 @@ static void Import(string fileName, string importType)
 
 static void ImportDepartments(List<string[]> rows)
 {
-    foreach (string[] row in rows)
+    using (UtilityDbContext db = new UtilityDbContext())
     {
-        try
+        foreach (string[] row in rows)
         {
-            if (row.Length != 4 || string.IsNullOrWhiteSpace(row[0]))
+            try
             {
-                throw new Exception();
-            }
-            string name = ReductText(row[0]);
-            string fullName = ReductFullName(row[2]);
-            string parentName = ReductText(row[1]);
-            Department? parent = null;
-            Employee? manager = null;
-            using (UtilityDbContext db = new UtilityDbContext())
-            {
-                List<Department> departments = db.Departments.Where(d => d.Name.Replace(" ", "").ToLower()
-                == name.Replace(" ", "").ToLower()).ToList();
-                if (!string.IsNullOrWhiteSpace(parentName))
+                if (row.Length != 4 || string.IsNullOrWhiteSpace(row[0]))
                 {
-                    if(departments.Count > 0)
+                    throw new Exception();
+                }
+                string name = ReductText(row[0]);
+                string fullName = ReductFullName(row[2]);
+                string parentName = ReductText(row[1]);
+                Department? parent = null;
+                Employee? manager = null;
+
+                    List<Department> departments = db.Departments.Where(d => d.Name.Replace(" ", "").ToLower()
+                    == name.Replace(" ", "").ToLower()).ToList();
+                    if (!string.IsNullOrWhiteSpace(parentName))
                     {
-                        foreach (var dep in departments)
+                        if (departments.Count > 0)
                         {
-                            var temp_parent = db.Departments.FirstOrDefault(d => d.ID == dep.ParentID);
-                            if (temp_parent != null && parentName.Replace(" ", "").ToLower() == 
-                                temp_parent.Name.Replace(" ", "").ToLower())
+                            foreach (var dep in departments)
                             {
-                                parent = temp_parent;
-                                break;
+                                var temp_parent = db.Departments.FirstOrDefault(d => d.ID == dep.ParentID);
+                                if (temp_parent != null && parentName.Replace(" ", "").ToLower() ==
+                                    temp_parent.Name.Replace(" ", "").ToLower())
+                                {
+                                    parent = temp_parent;
+                                    break;
+                                }
                             }
                         }
-                    }
-                    if (parent == null)
-                    {
-                        parent = db.Departments.FirstOrDefault(d => d.Name.Replace(" ", "").ToLower()
-                        == parentName.Replace(" ", "").ToLower()); //тут тоже есть нюанс, что мы не знаем какой
-                                                               //имеенно родительский департамент будет выбран, так как
-                                                               //уникальность задаётся двумя параметрами, а у нас только его имя
-                    }
-                    if (parent == null)
-                    {
-                        parent = new Department
+                        if (parent == null)
                         {
-                            Name = parentName,
-                            ParentID = 0,
-                            ManagerID = null
-                        };
-                        db.Departments.Add(parent);
-                        db.SaveChanges();
-                    }
-                }
-                if (!string.IsNullOrWhiteSpace(fullName))
-                {
-                    manager = db.Employees.FirstOrDefault(e => e.FullName.Replace(" ", "").ToLower()
-                    == fullName.Replace(" ", "").ToLower());
-                    if (manager == null)
-                    {
-                        manager = new Employee { FullName = fullName };
-                        db.Employees.Add(manager);
-                        db.SaveChanges();
-
-                    }
-                    else
-                    {
-                        var oldDepartment = db.Departments.FirstOrDefault(d => d.ID == manager.DepartmentID);
-                        if (oldDepartment != null)
+                            parent = db.Departments.FirstOrDefault(d => d.Name.Replace(" ", "").ToLower()
+                            == parentName.Replace(" ", "").ToLower()); //тут тоже есть нюанс, что мы не знаем какой
+                                                                       //имеенно родительский департамент будет выбран, так как
+                                                                       //уникальность задаётся двумя параметрами, а у нас только его имя
+                        }
+                        if (parent == null)
                         {
-                            oldDepartment.Manager = null;
-                            db.Update(oldDepartment);
+                            parent = new Department
+                            {
+                                Name = parentName,
+                                ParentID = 0,
+                                ManagerID = null
+                            };
+                            db.Departments.Add(parent);
                             db.SaveChanges();
                         }
                     }
-
-                }
-                Department? department = db.Departments.FirstOrDefault(d => d.Name.Replace(" ", "").ToLower()
-                == name.Replace(" ", "").ToLower()
-                && (d.ParentID == (parent != null ? parent.ID : 0)));
-
-                if (department != null)
-                {
-                    if(manager == null)
+                    if (!string.IsNullOrWhiteSpace(fullName))
                     {
-                        department.ManagerID = null;
+                        manager = db.Employees.FirstOrDefault(e => e.FullName.Replace(" ", "").ToLower()
+                        == fullName.Replace(" ", "").ToLower());
+                        if (manager == null)
+                        {
+                            manager = new Employee { FullName = fullName };
+                            db.Employees.Add(manager);
+                            db.SaveChanges();
+
+                        }
+                        else
+                        {
+                            var oldDepartment = db.Departments.FirstOrDefault(d => d.ID == manager.DepartmentID);
+                            if (oldDepartment != null)
+                            {
+                                oldDepartment.Manager = null;
+                                db.Update(oldDepartment);
+                                db.SaveChanges();
+                            }
+                        }
+
+                    }
+                    Department? department = db.Departments.FirstOrDefault(d => d.Name.Replace(" ", "").ToLower()
+                    == name.Replace(" ", "").ToLower()
+                    && (d.ParentID == (parent != null ? parent.ID : 0)));
+
+                    if (department != null)
+                    {
+                        if (manager == null)
+                        {
+                            department.ManagerID = null;
+                        }
+                        else
+                        {
+                            if (department.ManagerID != manager.ID)
+                            {
+                                var oldManager = db.Employees.FirstOrDefault(e => e.ID == department.ManagerID);
+                                if (oldManager != null)
+                                {
+                                    oldManager.ManagerDepartment = null;
+                                }
+                                manager.ManagerDepartment = department;
+                                department.Employees.Add(manager);
+                            }
+                        }
+                        department.Phone = row[3];
+                        db.Update(department);
+                        db.SaveChanges();
+
                     }
                     else
                     {
-                        if (department.ManagerID != manager.ID)
+
+                        department = new Department
                         {
-                            var oldManager = db.Employees.FirstOrDefault(e => e.ID == department.ManagerID);
-                            if (oldManager != null)
-                            {
-                                oldManager.ManagerDepartment = null;
-                            }
-                            manager.ManagerDepartment = department;
+                            ParentID = parent is not null ? parent.ID : 0,
+                            Name = ReductText(row[0]),
+                            ManagerID = manager is not null ? manager.ID : null,
+                            Phone = row[3],
+                            Employees = new()
+                        };
+                        if (manager != null)
+                        {
                             department.Employees.Add(manager);
                         }
+                        db.Add(department);
+                        db.SaveChanges();
                     }
-                    department.Phone = row[3];
-                    db.Update(department);
-                    db.SaveChanges();
 
-                }
-                else
-                {
 
-                    department = new Department
-                    {
-                        ParentID = parent is not null ? parent.ID : 0,
-                        Name = ReductText(row[0]),
-                        ManagerID = manager is not null ? manager.ID : null,
-                        Phone = row[3],
-                        Employees = new()
-                    };
-                    if(manager != null)
-                    {
-                        department.Employees.Add(manager);
-                    }
-                    db.Add(department);
-                    db.SaveChanges();
-                }
+                
 
 
             }
+            catch (Exception)
+            {
 
-
-        }
-        catch (Exception)
-        {
-            
-            Console.WriteLine("stderror");
+                Console.WriteLine("stderror");
+            }
         }
     }
+        
 
 
 }
@@ -338,11 +341,6 @@ static void ImportEmployees(List<string[]> rows)
                     }
 
 
-
-
-                
-
-
             }
             catch (Exception)
             {
@@ -351,150 +349,36 @@ static void ImportEmployees(List<string[]> rows)
             }
         }
     }
-    //foreach (string[] row in rows)
-    //{
-    //    try
-    //    {
-    //        if (row.Length != 5 || string.IsNullOrWhiteSpace(row[1]))
-    //        {
-    //            throw new Exception();
-    //        }
-    //        string deparmentName = ReductText(row[0]);
-    //        string fullName = ReductFullName(row[1]);
-    //        string jobName = ReductText(row[4]);
-    //        Job? job = null;
-    //        Department? department = null;
-    //        using (UtilityDbContext db = new UtilityDbContext())
-    //        {
-    //            Employee? employee = db.Employees.FirstOrDefault(d => d.FullName.Replace(" ", "").ToLower()
-    //                == fullName.Replace(" ", "").ToLower());
-    //            if (!string.IsNullOrWhiteSpace(deparmentName))
-    //            {
-    //                if(employee != null && employee.DepartmentID != null)
-    //                {
-    //                    department = db.Departments.FirstOrDefault(d => d.ID
-    //                    == employee.DepartmentID); 
-    //                    if(department != null && department.Name != deparmentName)
-    //                    {
-    //                        department = null;
-    //                    }
-    //                }
-    //                if (department == null)
-    //                {
-    //                    department = db.Departments.FirstOrDefault(d => d.Name.Replace(" ", "").ToLower()
-    //                    == deparmentName.Replace(" ", "").ToLower()); //Тут есть нюанс, что мы находим первый попавшийся отдел
-    //                }
 
-    //                if (department == null)
-    //                {
-    //                    department = new Department
-    //                    {
-    //                        Name = deparmentName,
-    //                        ParentID = 0,
-    //                        ManagerID = null
-    //                    };
-    //                    db.Departments.Add(department);
-    //                    db.SaveChanges();
-    //                }
-    //            }
-    //            if (!string.IsNullOrWhiteSpace(jobName))
-    //            {
-    //                job = db.Jobs.FirstOrDefault(e => e.Name.Replace(" ", "").ToLower()
-    //                == jobName.Replace(" ", "").ToLower());
-    //                if (job == null)
-    //                {
-    //                    job = new Job { Name = jobName };
-    //                    db.Jobs.Add(job);
-    //                    db.SaveChanges();
-
-    //                }
-
-    //            }
-    //            if (employee != null)
-    //            {
-    //                if (department != null && employee.DepartmentID != department.ID)
-    //                {
-    //                    var oldDepartment = db.Departments.FirstOrDefault(d => d.ManagerID == employee.ID);
-    //                    if (oldDepartment != null && oldDepartment.ManagerID == employee.ID)
-    //                    {
-    //                        oldDepartment.ManagerID = null;
-    //                        db.Update(oldDepartment);
-    //                        db.SaveChanges();
-    //                    }
-    //                    db.Update(department);
-    //                }
-    //                employee.DepartmentID = department == null ? null : department.ID;
-    //                employee.Login = row[2];
-    //                employee.Password = row[3];
-    //                employee.JobID = job == null ? null : job.ID;
- 
-
-    //                db.Update(employee);
-    //                db.SaveChanges();
-
-    //            }
-    //            else
-    //            {
-
-    //                employee = new Employee
-    //                {
-    //                    FullName = fullName,
-    //                    Login = row[2],
-    //                    Password = row[3]
-    //                };
-    //                if(department != null)
-    //                {
-    //                    employee.DepartmentID = department.ID;
-    //                }
-    //                if (job != null)
-    //                {
-    //                    employee.JobID = job.ID;
-    //                }
-
-    //                db.Add(employee);
-    //                db.SaveChanges();
-    //            }
-
-
-
-          
-    //        }
-
-
-    //    }
-    //    catch (Exception)
-    //    {
-    //        Console.WriteLine("stderror");
-    //    }
-    //}
     
 
 
 }
 static void ImportJobs(List<string[]> rows)
 {
-    foreach (string[] row in rows)
+    using (UtilityDbContext db = new UtilityDbContext())
     {
-        try
+        foreach (string[] row in rows)
         {
-            if (string.IsNullOrWhiteSpace(row[0]))
+            try
             {
-                throw new Exception();
-            }
-            string name = ReductText(row[0]);
-            var job = new Job { Name = name };
-            using (UtilityDbContext db = new UtilityDbContext())
-            {
+                if (string.IsNullOrWhiteSpace(row[0]))
+                {
+                    throw new Exception();
+                }
+                string name = ReductText(row[0]);
+                var job = new Job { Name = name };
 
                 db.Add(job);
                 db.SaveChanges();
             }
-        }
-        catch (Exception)
-        {
-            Console.WriteLine("stderror");
+            catch (Exception)
+            {
+                Console.WriteLine("stderror");
+            }
         }
     }
+        
 }
 
 
@@ -552,21 +436,22 @@ static string WriteNode(Department node, List<Department> departments, int level
     Employee? manager = null;
     using (UtilityDbContext db = new UtilityDbContext())
     {
-        employees = db.Employees.Where(e => e.DepartmentID == node.ID).OrderBy(e => e.FullName).ToList();
-        manager = db.Employees.FirstOrDefault(e => e.ID == node.ManagerID);
-    }
-    output += $"{new string('=', level)} {node.Name} ID={node.ID}\n";
-    output += WriteManager(manager, level);
-    output += WriteEmloyees(node, employees, level);
-    var children = departments.Where(d => d.ParentID == node.ID).OrderBy(p => p.Name);
-    foreach (var child in children)
-    {
-        int newLevel = level + 1;
-        output += WriteNode(child, departments, newLevel);
+            employees = db.Employees.Where(e => e.DepartmentID == node.ID).OrderBy(e => e.FullName).ToList();
+            manager = db.Employees.FirstOrDefault(e => e.ID == node.ManagerID);
+        
+        output += $"{new string('=', level)} {node.Name} ID={node.ID}\n";
+        output += WriteManager(manager, level, db);
+        output += WriteEmloyees(node, employees, level, db);
+        var children = departments.Where(d => d.ParentID == node.ID).OrderBy(p => p.Name);
+        foreach (var child in children)
+        {
+            int newLevel = level + 1;
+            output += WriteNode(child, departments, newLevel);
+        }
     }
     return output;
 }
-static string WriteManager(Employee? manager, int level)
+static string WriteManager(Employee? manager, int level, UtilityDbContext db)
 {
     string output = "";
     if (manager != null)
@@ -574,21 +459,19 @@ static string WriteManager(Employee? manager, int level)
         string job = "";
         if (manager.JobID != null)
         {
-            using (UtilityDbContext db = new UtilityDbContext())
-            {
+
                 job += db.Jobs.First(j => j.ID == manager.JobID).Name;
                 if (job != "")
                 {
                     job = "(" + job + ")";
                 }
 
-            }
         }
         output += $"{new string(' ', level - 1)}* {manager.FullName} ID={manager.ID} {job}\n";
     }
     return output;
 }
-static string WriteEmloyees(Department node, List<Employee> employees, int level)
+static string WriteEmloyees(Department node, List<Employee> employees, int level, UtilityDbContext db)
 {
     string output = "";
     foreach (var employee in employees)
@@ -600,15 +483,14 @@ static string WriteEmloyees(Department node, List<Employee> employees, int level
         string job = "";
         if (employee.JobID != null)
         {
-            using (UtilityDbContext db = new UtilityDbContext())
-            {
+
                 job += db.Jobs.First(j => j.ID == employee.JobID).Name;
                 if (job != "")
                 {
                     job = "(" + job + ")";
                 }
 
-            }
+
         }
 
         output += $"{new string(' ', level - 1)}- {employee.FullName} ID={employee.ID} {job}\n";
@@ -640,32 +522,33 @@ static List<Department> WriteParents(Department node, List<Department> departmen
 static void OutputById(int id)
 {
     var departments = new List<Department>();
+    string output = "";
 
     using (UtilityDbContext db = new UtilityDbContext())
     {
         departments = db.Departments.ToList();
-    }
 
-    var node = departments.FirstOrDefault(d => d.ID == id);
-    if (node == null)
-    {
-        Console.WriteLine("Данный id не существует!");
-        return;
-    }
-    string output = "";
-    List<Department> parents = WriteParents(node, departments, ref output);
 
-    output += $"{new string('=', parents.Count + 1)} {node.Name} ID={node.ID}\n";
+        var node = departments.FirstOrDefault(d => d.ID == id);
+        if (node == null)
+        {
+            Console.WriteLine("Данный id не существует!");
+            return;
+        }
 
-    var employees = new List<Employee>();
-    Employee? manager = null;
-    using (UtilityDbContext db = new UtilityDbContext())
-    {
+        List<Department> parents = WriteParents(node, departments, ref output);
+
+        output += $"{new string('=', parents.Count + 1)} {node.Name} ID={node.ID}\n";
+
+        var employees = new List<Employee>();
+        Employee? manager = null;
+
         employees = db.Employees.Where(e => e.DepartmentID == node.ID).OrderBy(e => e.FullName).ToList();
         manager = db.Employees.FirstOrDefault(e => e.ID == node.ManagerID);
+        output += WriteManager(manager, parents.Count + 1, db);
+        output += WriteEmloyees(node, employees, parents.Count + 1, db);
     }
-    output += WriteManager(manager, parents.Count + 1);
-    output += WriteEmloyees(node, employees, parents.Count + 1);
+
     Console.WriteLine(output);
 
 }

@@ -221,6 +221,7 @@ static void ImportDepartments(List<string[]> rows)
         }
         catch (Exception)
         {
+            
             Console.WriteLine("stderror");
         }
     }
@@ -231,122 +232,241 @@ static void ImportDepartments(List<string[]> rows)
 
 static void ImportEmployees(List<string[]> rows)
 {
-    foreach (string[] row in rows)
+    using (UtilityDbContext db = new UtilityDbContext())
     {
-        try
+        foreach (string[] row in rows)
         {
-            if (row.Length != 5 || string.IsNullOrWhiteSpace(row[1]))
+            try
             {
-                throw new Exception();
-            }
-            string deparmentName = ReductText(row[0]);
-            string fullName = ReductFullName(row[1]);
-            string jobName = ReductText(row[4]);
-            Job? job = null;
-            Department? department = null;
-            using (UtilityDbContext db = new UtilityDbContext())
-            {
-                Employee? employee = db.Employees.FirstOrDefault(d => d.FullName.Replace(" ", "").ToLower()
-                    == fullName.Replace(" ", "").ToLower());
-                if (!string.IsNullOrWhiteSpace(deparmentName))
+                if (row.Length != 5 || string.IsNullOrWhiteSpace(row[1]))
                 {
-                    if(employee != null && employee.DepartmentID != null)
+                    throw new Exception();
+                }
+                string deparmentName = ReductText(row[0]);
+                string fullName = ReductFullName(row[1]);
+                string jobName = ReductText(row[4]);
+                Job? job = null;
+                Department? department = null;
+
+                    Employee? employee = db.Employees.FirstOrDefault(d => d.FullName.Replace(" ", "").ToLower()
+                        == fullName.Replace(" ", "").ToLower());
+                    if (!string.IsNullOrWhiteSpace(deparmentName))
                     {
-                        department = db.Departments.FirstOrDefault(d => d.ID
-                        == employee.DepartmentID); 
-                        if(department != null && department.Name != deparmentName)
+                        if (employee != null && employee.DepartmentID != null)
                         {
-                            department = null;
+                            department = db.Departments.FirstOrDefault(d => d.ID
+                            == employee.DepartmentID);
+                            if (department != null && department.Name != deparmentName)
+                            {
+                                department = null;
+                            }
                         }
-                    }
-                    if (department == null)
-                    {
-                        department = db.Departments.FirstOrDefault(d => d.Name.Replace(" ", "").ToLower()
-                        == deparmentName.Replace(" ", "").ToLower()); //Тут есть нюанс, что мы находим первый попавшийся отдел
-                    }
-
-                    if (department == null)
-                    {
-                        department = new Department
+                        if (department == null)
                         {
-                            Name = deparmentName,
-                            ParentID = 0,
-                            ManagerID = null
-                        };
-                        db.Departments.Add(department);
-                        db.SaveChanges();
-                    }
-                }
-                if (!string.IsNullOrWhiteSpace(jobName))
-                {
-                    job = db.Jobs.FirstOrDefault(e => e.Name.Replace(" ", "").ToLower()
-                    == jobName.Replace(" ", "").ToLower());
-                    if (job == null)
-                    {
-                        job = new Job { Name = jobName };
-                        db.Jobs.Add(job);
-                        db.SaveChanges();
+                            department = db.Departments.FirstOrDefault(d => d.Name.Replace(" ", "").ToLower()
+                            == deparmentName.Replace(" ", "").ToLower()); //Тут есть нюанс, что мы находим первый попавшийся отдел
+                        }
 
-                    }
-
-                }
-                if (employee != null)
-                {
-                    if (department != null && employee.DepartmentID != department.ID)
-                    {
-                        var oldDepartment = db.Departments.FirstOrDefault(d => d.ManagerID == employee.ID);
-                        if (oldDepartment != null && oldDepartment.ManagerID == employee.ID)
+                        if (department == null)
                         {
-                            oldDepartment.ManagerID = null;
-                            db.Update(oldDepartment);
+                            department = new Department
+                            {
+                                Name = deparmentName,
+                                ParentID = 0,
+                                ManagerID = null
+                            };
+                            db.Departments.Add(department);
                             db.SaveChanges();
                         }
-                        db.Update(department);
                     }
-                    employee.DepartmentID = department == null ? null : department.ID;
-                    employee.Login = row[2];
-                    employee.Password = row[3];
-                    employee.JobID = job == null ? null : job.ID;
+                    if (!string.IsNullOrWhiteSpace(jobName))
+                    {
+                        job = db.Jobs.FirstOrDefault(e => e.Name.Replace(" ", "").ToLower()
+                        == jobName.Replace(" ", "").ToLower());
+                        if (job == null)
+                        {
+                            job = new Job { Name = jobName };
+                            db.Jobs.Add(job);
+                            db.SaveChanges();
+
+                        }
+
+                    }
+                    if (employee != null)
+                    {
+                        if (department != null && employee.DepartmentID != department.ID)
+                        {
+                            var oldDepartment = db.Departments.FirstOrDefault(d => d.ManagerID == employee.ID);
+                            if (oldDepartment != null && oldDepartment.ManagerID == employee.ID)
+                            {
+                                oldDepartment.ManagerID = null;
+                                db.Update(oldDepartment);
+                                db.SaveChanges();
+                            }
+                            db.Update(department);
+                        }
+                        employee.DepartmentID = department == null ? null : department.ID;
+                        employee.Login = row[2];
+                        employee.Password = row[3];
+                        employee.JobID = job == null ? null : job.ID;
+
+
+                        db.Update(employee);
+                        db.SaveChanges();
+
+                    }
+                    else
+                    {
+
+                        employee = new Employee
+                        {
+                            FullName = fullName,
+                            Login = row[2],
+                            Password = row[3]
+                        };
+                        if (department != null)
+                        {
+                            employee.DepartmentID = department.ID;
+                        }
+                        if (job != null)
+                        {
+                            employee.JobID = job.ID;
+                        }
+
+                        db.Add(employee);
+                        db.SaveChanges();
+                    }
+
+
+
+
+                
+
+
+            }
+            catch (Exception)
+            {
+                
+                Console.WriteLine("stderror");
+            }
+        }
+    }
+    //foreach (string[] row in rows)
+    //{
+    //    try
+    //    {
+    //        if (row.Length != 5 || string.IsNullOrWhiteSpace(row[1]))
+    //        {
+    //            throw new Exception();
+    //        }
+    //        string deparmentName = ReductText(row[0]);
+    //        string fullName = ReductFullName(row[1]);
+    //        string jobName = ReductText(row[4]);
+    //        Job? job = null;
+    //        Department? department = null;
+    //        using (UtilityDbContext db = new UtilityDbContext())
+    //        {
+    //            Employee? employee = db.Employees.FirstOrDefault(d => d.FullName.Replace(" ", "").ToLower()
+    //                == fullName.Replace(" ", "").ToLower());
+    //            if (!string.IsNullOrWhiteSpace(deparmentName))
+    //            {
+    //                if(employee != null && employee.DepartmentID != null)
+    //                {
+    //                    department = db.Departments.FirstOrDefault(d => d.ID
+    //                    == employee.DepartmentID); 
+    //                    if(department != null && department.Name != deparmentName)
+    //                    {
+    //                        department = null;
+    //                    }
+    //                }
+    //                if (department == null)
+    //                {
+    //                    department = db.Departments.FirstOrDefault(d => d.Name.Replace(" ", "").ToLower()
+    //                    == deparmentName.Replace(" ", "").ToLower()); //Тут есть нюанс, что мы находим первый попавшийся отдел
+    //                }
+
+    //                if (department == null)
+    //                {
+    //                    department = new Department
+    //                    {
+    //                        Name = deparmentName,
+    //                        ParentID = 0,
+    //                        ManagerID = null
+    //                    };
+    //                    db.Departments.Add(department);
+    //                    db.SaveChanges();
+    //                }
+    //            }
+    //            if (!string.IsNullOrWhiteSpace(jobName))
+    //            {
+    //                job = db.Jobs.FirstOrDefault(e => e.Name.Replace(" ", "").ToLower()
+    //                == jobName.Replace(" ", "").ToLower());
+    //                if (job == null)
+    //                {
+    //                    job = new Job { Name = jobName };
+    //                    db.Jobs.Add(job);
+    //                    db.SaveChanges();
+
+    //                }
+
+    //            }
+    //            if (employee != null)
+    //            {
+    //                if (department != null && employee.DepartmentID != department.ID)
+    //                {
+    //                    var oldDepartment = db.Departments.FirstOrDefault(d => d.ManagerID == employee.ID);
+    //                    if (oldDepartment != null && oldDepartment.ManagerID == employee.ID)
+    //                    {
+    //                        oldDepartment.ManagerID = null;
+    //                        db.Update(oldDepartment);
+    //                        db.SaveChanges();
+    //                    }
+    //                    db.Update(department);
+    //                }
+    //                employee.DepartmentID = department == null ? null : department.ID;
+    //                employee.Login = row[2];
+    //                employee.Password = row[3];
+    //                employee.JobID = job == null ? null : job.ID;
  
 
-                    db.Update(employee);
-                    db.SaveChanges();
+    //                db.Update(employee);
+    //                db.SaveChanges();
 
-                }
-                else
-                {
+    //            }
+    //            else
+    //            {
 
-                    employee = new Employee
-                    {
-                        FullName = fullName,
-                        Login = row[2],
-                        Password = row[3]
-                    };
-                    if(department != null)
-                    {
-                        employee.DepartmentID = department.ID;
-                    }
-                    if (job != null)
-                    {
-                        employee.JobID = job.ID;
-                    }
+    //                employee = new Employee
+    //                {
+    //                    FullName = fullName,
+    //                    Login = row[2],
+    //                    Password = row[3]
+    //                };
+    //                if(department != null)
+    //                {
+    //                    employee.DepartmentID = department.ID;
+    //                }
+    //                if (job != null)
+    //                {
+    //                    employee.JobID = job.ID;
+    //                }
 
-                    db.Add(employee);
-                    db.SaveChanges();
-                }
+    //                db.Add(employee);
+    //                db.SaveChanges();
+    //            }
 
 
 
           
-            }
+    //        }
 
 
-        }
-        catch (Exception)
-        {
-            Console.WriteLine("stderror");
-        }
-    }
+    //    }
+    //    catch (Exception)
+    //    {
+    //        Console.WriteLine("stderror");
+    //    }
+    //}
     
 
 
